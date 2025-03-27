@@ -72,38 +72,24 @@ export function AIChatInterface({
     setIsLoading(true)
 
     try {
-      // Simulate AI processing
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://localhost:5000/chat"
 
-      // Extract client data from message (in a real app, this would use NLP)
-      const extractedData = extractClientDataFromMessage(input)
+      const response = await fetch(pythonServiceUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: input }),
+      })
 
-      let responseContent = ""
-
-      if (Object.keys(extractedData).length > 0) {
-        responseContent = `I've captured the following information:\n`
-
-        if (extractedData.firstName) responseContent += `- First Name: ${extractedData.firstName}\n`
-        if (extractedData.lastName) responseContent += `- Last Name: ${extractedData.lastName}\n`
-        if (extractedData.email) responseContent += `- Email: ${extractedData.email}\n`
-        if (extractedData.phone) responseContent += `- Phone: ${extractedData.phone}\n`
-        if (extractedData.address) responseContent += `- Address: ${extractedData.address}\n`
-        if (extractedData.city) responseContent += `- City: ${extractedData.city}\n`
-        if (extractedData.state) responseContent += `- State: ${extractedData.state}\n`
-        if (extractedData.zip) responseContent += `- ZIP: ${extractedData.zip}\n`
-
-        responseContent += "\nIs there anything else you'd like to add or correct?"
-
-        // Pass the extracted data to the parent component
-        onClientDataExtracted(extractedData)
-      } else {
-        responseContent =
-          "I couldn't identify specific client information. Could you provide details like name, email, phone, or address? Alternatively, you can upload a document with client information."
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
 
+      const data = await response.json()
       const assistantMessage: Message = {
         role: "assistant",
-        content: responseContent,
+        content: data.response,
       }
 
       setMessages((prev) => [...prev, assistantMessage])
@@ -122,68 +108,49 @@ export function AIChatInterface({
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0]
+    setIsLoading(true)
 
-      const userMessage: Message = {
-        role: "user",
-        content: `I'm uploading a document: ${file.name}`,
-      }
+    try {
+      if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        const formData = new FormData();
+        formData.append("document", file);
 
-      setMessages((prev) => [...prev, userMessage])
-      setIsLoading(true)
+        const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://localhost:5000/extract";
 
-      try {
-        // Simulate document processing
-        await new Promise((resolve) => setTimeout(resolve, 2000))
+        const response = await fetch(pythonServiceUrl, {
+          method: "POST",
+          body: formData,
+        });
 
-        // In a real app, this would use OCR and NLP to extract data from the document
-        // For demo purposes, we'll simulate extracted data
-        const extractedData: ClientData = {
-          firstName: "John",
-          lastName: "Smith",
-          email: "john.smith@example.com",
-          phone: "(123) 456-7890",
-          address: "123 Main St",
-          city: "New York",
-          state: "NY",
-          zip: "10001",
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const responseContent =
-          `I've extracted the following information from ${file.name}:\n\n` +
-          `- First Name: ${extractedData.firstName}\n` +
-          `- Last Name: ${extractedData.lastName}\n` +
-          `- Email: ${extractedData.email}\n` +
-          `- Phone: ${extractedData.phone}\n` +
-          `- Address: ${extractedData.address}\n` +
-          `- City: ${extractedData.city}\n` +
-          `- State: ${extractedData.state}\n` +
-          `- ZIP: ${extractedData.zip}\n\n` +
-          "I've filled in this information for you. Is there anything else you'd like to add or correct?"
+        const data = await response.json();
 
         const assistantMessage: Message = {
           role: "assistant",
-          content: responseContent,
-        }
+          content: data.response,
+        };
 
-        setMessages((prev) => [...prev, assistantMessage])
+        setMessages((prev) => [...prev, assistantMessage]);
 
         // Pass the extracted data to the parent component
-        onDocumentDataExtracted(extractedData)
-      } catch (error) {
-        console.error("Error processing document:", error)
-
-        const errorMessage: Message = {
-          role: "assistant",
-          content:
-            "I'm sorry, I encountered an error processing your document. Please try again or enter the information manually.",
-        }
-
-        setMessages((prev) => [...prev, errorMessage])
-      } finally {
-        setIsLoading(false)
+        onDocumentDataExtracted(data.extractedData);
       }
+    } catch (error) {
+      console.error("Error processing document:", error);
+
+      const errorMessage: Message = {
+        role: "assistant",
+        content:
+          "I'm sorry, I encountered an error processing your document. Please try again or enter the information manually.",
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -365,4 +332,3 @@ export function AIChatInterface({
     </div>
   )
 }
-
