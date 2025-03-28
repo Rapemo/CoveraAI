@@ -4,3 +4,6 @@ pytesseract==0.3.10
 pdf2image==1.16.3
 Pillow==11.0.0
 supabase==2.3.1
+google-generativeai
+# deepseek==1.0.0 # Placeholder for DeepSeek library
+# google-generativeai==1.0.0    # Placeholder for Gemini library
